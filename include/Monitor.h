@@ -3,6 +3,7 @@
 #include "Sunnet.h"
 // #include "Atomic.h"
 
+//監視器 監視所有worker對象 每個worker對應一個WrorkerMonitor
 
 class Sunnet;
 class Service;
