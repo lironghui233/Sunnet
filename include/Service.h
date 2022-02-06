@@ -51,11 +51,14 @@ public:
 private:
 	//消息处理方法
 	void OnServiceMsg(std::shared_ptr<ServiceMsg> msg);	
+	void OnServiceCallbackMsg(std::shared_ptr<ServiceMsg> msg);	
 	void OnAcceptMsg(std::shared_ptr<SocketAcceptMsg> msg);	
 	void OnRWMsg(std::shared_ptr<SocketRWMsg> msg);	
 	void OnSocketData(int fd, const char* buff, int len);	
 	void OnSocketWritable(int fd);	
 	void OnSocketClose(int fd);	
+public:	
+	void OnServiceErr();	
 public:
 	//写缓冲区 （测试用）
 	std::unordered_map<int, std::shared_ptr<ConnWriter>> writers;	//<socketfd, ConnWriter>

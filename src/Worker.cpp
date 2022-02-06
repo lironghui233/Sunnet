@@ -11,8 +11,12 @@ void Worker::operator()() {
 			Sunnet::inst->WorkerWait();
 		}
 		else {
+			Sunnet::inst->MonitorTrigger(id, srv->id);
+
 			srv->ProcessMsgs(eachNum);
 			CheckAndPutGlobal(srv);
+		
+			Sunnet::inst->MonitorTrigger(id, 0);
 		}
 	}
 }

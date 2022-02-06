@@ -15,4 +15,7 @@ public:
 	static int Listen(lua_State *luaState);
 	static int CloseConn(lua_State *luaState);
 	static int Write(lua_State *luaState);
+	
+	static int AddTimer(lua_State *luaState);
+	static int DelTimer(lua_State *luaState);
 };

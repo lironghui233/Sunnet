@@ -16,6 +16,8 @@ void LuaAPI::Register(lua_State *luaState) {
 		{"Listen", Listen},
 		{"CloseConn", CloseConn},
 		{"Write", Write},
+		{"AddTimer", AddTimer},
+		{"DelTimer", DelTimer},
 		{NULL, NULL}
 	};
 	luaL_newlib(luaState, lualibs); //在栈中创建一张新的表，把参数二的函数注册到表中
@@ -159,5 +161,53 @@ int LuaAPI::Write(lua_State *luaState) {
 	int r = write(fd, buff, len);
 	//返回值
 	lua_pushinteger(luaState, r);
+	return 1;
+}
+
+//添加定时器
+int LuaAPI::AddTimer(lua_State *luaState){
+	//参数个数
+	int num = lua_gettop(luaState);
+	//参数1：service_id
+	if(lua_isinteger(luaState, 1) == 0) {
+		lua_pushinteger(luaState, -1);
+		return 1;
+	}
+	int service_id = lua_tointeger(luaState, 1);
+	//参数2：expire 超时时间
+	if(lua_isinteger(luaState, 2) == 0) {
+		lua_pushinteger(luaState, -1);
+		return 1;
+	}
+	int expire = lua_tointeger(luaState, 2);
+	//参数3：func_name
+	if(lua_isstring(luaState, 3) == 0) {
+		lua_pushinteger(luaState, -1);
+		return 1;
+	}
+	size_t len = 0;
+	const char *func_name = lua_tolstring(luaState, 3, &len);
+	char *newstr = new char[len+1]; //后面加\0
+    newstr[len] = '\0';
+    memcpy(newstr, func_name, len); //将字符串又复制一遍原因是Lua字符串是Lua虚拟机管理的，其带有垃圾回收机制，复制一遍为了防止可能发生的冲突
+	int id = Sunnet::inst->AddTimer(service_id, expire, newstr);
+	//返回值
+	lua_pushinteger(luaState, id);
+	return 1;
+}
+
+//删除定时器
+int LuaAPI::DelTimer(lua_State *luaState){
+	//参数个数
+	int num = lua_gettop(luaState);
+	//参数1：timer_id
+	if(lua_isinteger(luaState, 1) == 0) {
+		lua_pushinteger(luaState, -1);
+		return 1;
+	}
+	int timer_id = lua_tointeger(luaState, 1);
+	bool is_ok = Sunnet::inst->DelTimer(timer_id);
+	//返回值
+	lua_pushinteger(luaState, is_ok);
 	return 1;
 }

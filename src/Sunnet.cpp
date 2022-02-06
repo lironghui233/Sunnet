@@ -25,10 +25,14 @@ void Sunnet::Start(){
 	assert(pthread_cond_init(&sleepCond, NULL) == 0);
 	assert(pthread_mutex_init(&sleepMtx, NULL) == 0);
 	assert(pthread_rwlock_init(&connsLock, NULL) == 0);
+	//開啓Monitor
+	StartMonitor();
 	//开启Worker
 	StartWorker();
 	//开启Socket
 	StartSocket();
+	//开启Timer
+	StartTimer();
 }
 
 //开启Socket线程
@@ -41,6 +45,16 @@ void Sunnet::StartSocket(){
 	socketThread = new std::thread(*socketWorker);
 }
 
+//開啓Monitor現場
+void Sunnet::StartMonitor(){
+	//创建线程对象
+	monitor = new Monitor();
+	//初始化
+	monitor->_count = WORKER_NUM;
+	//创建线程
+	monitorThread = new std::thread(*monitor);
+}
+
 //开启worker线程
 void Sunnet::StartWorker(){
 	for (int i = 0; i < WORKER_NUM; ++i) {
@@ -49,12 +63,24 @@ void Sunnet::StartWorker(){
 		Worker* worker = new Worker();
 		worker->id = i;
 		worker->eachNum = 2 << i; //不同的worker线程的eachNum按指数增大，让低编号的工作线程更关注延迟性，高编号的工作线程更关注效率，达到总体平衡
+		//監視worker綫程
+		NewWorkerMonitor(worker->id);
 		//创建线程
 		std::thread *wt = new std::thread(*worker);
 		//添加到数组
 		workers.push_back(worker);
 		workerThreads.push_back(wt);
 	}
+}
+
+//开启Timer线程
+void Sunnet::StartTimer(){
+	//创建线程对象
+	timer = new Timer();
+	//初始化
+	timer->Init();
+	//创建线程
+	timerThread = new std::thread(*timer);
 }
 
 //等待
@@ -77,6 +103,13 @@ uint32_t Sunnet::NewService(std::shared_ptr<std::string> type) {
 	pthread_rwlock_unlock(&servicesLock);
 	srv->OnInit();	//初始化
 	return srv->id;
+}
+
+void Sunnet::OnServiceErr(uint32_t id){
+	std::shared_ptr<Service> srv =GetService(id);
+	if(!srv) 
+		return;
+	srv->OnServiceErr();
 }
 
 //由id查找服务
@@ -161,10 +194,28 @@ void Sunnet::Send(uint32_t toId, std::shared_ptr<BaseMsg> msg) {
 	}
 }
 
-//仅测试用！！！！
+std::shared_ptr<BaseMsg> Sunnet::MakeBaseMsg(int type) {
+	auto msg = std::make_shared<BaseMsg>();
+	msg->type = type;
+	return msg;
+}
+
 std::shared_ptr<BaseMsg> Sunnet::MakeMsg(uint32_t source, char* buff, int len) {
 	auto msg = std::make_shared<ServiceMsg>();
 	msg->type = BaseMsg::TYPE::SERVICE;
+	msg->source = source;
+	//基本类型的对象没有析构函数
+	//所以用delete或delete[]都可以销毁基本类型数组；
+	//智能指针默认使用delete销毁对象
+	//所以无须重写智能指针的销毁方法
+	msg->buff = std::shared_ptr<char>(buff);
+	msg->size = len;
+	return msg;
+}
+
+std::shared_ptr<BaseMsg> Sunnet::MakeCallbackMsg(uint32_t source, char* buff, int len) {
+	auto msg = std::make_shared<ServiceMsg>();
+	msg->type = BaseMsg::TYPE::SERVICE_CALLBACK;
 	msg->source = source;
 	//基本类型的对象没有析构函数
 	//所以用delete或delete[]都可以销毁基本类型数组；
@@ -194,6 +245,11 @@ void Sunnet::CheckAndWeekUp() {
 		std::cout << "weakup" << std::endl; 	
 		pthread_cond_signal(&sleepCond);
 	}
+}
+
+//工作中的worker綫程數量
+int Sunnet::GetWorkingThreadNum() {
+	return WORKER_NUM - sleepCount;
 }
 
 //添加Conn
@@ -281,3 +337,36 @@ void Sunnet::CloseConn(uint32_t fd) {
 void Sunnet::ModifyEvent(int fd, bool epollOut) {
     socketWorker->ModifyEvent(fd, epollOut);
 }
+
+int Sunnet::AddTimer(uint32_t serviceId, uint32_t expire, char* cb){
+	return timer->AddTimer(serviceId, expire, cb);
+}
+
+bool Sunnet::DelTimer(int id){
+	return timer->DelTimer(id);
+}
+
+void Sunnet::ExpireTimer(){
+	timer->ExpireTimer();
+}
+
+uint32_t Sunnet::GetNearestTimer(){
+	return timer->GetNearestTimer();
+}
+
+void Sunnet::NewWorkerMonitor(uint32_t worker_id){
+	monitor->NewWorkerMonitor(worker_id);
+}
+
+void Sunnet::DeleteWorkerMonitor(uint32_t worker_id){
+	monitor->DeleteWorkerMonitor(worker_id);
+}
+
+void Sunnet::MonitorTrigger(uint32_t worker_id, int service_id){
+	monitor->MonitorTrigger(worker_id, service_id);
+}
+
+void Sunnet::MonitorCheck(){
+	monitor->MonitorCheck();
+}
+

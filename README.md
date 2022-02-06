@@ -9,6 +9,11 @@ Sunnet系统是用C++实现的模仿Skynet的游戏服务器后端。Sunnet是�
  - **include/**：存放头文件（.h）
  - **service/**: 存放Lua脚本
  - **src/**：存放源文件（.cpp）
+ - **luaclib**：存放一些C模块（.so文件），提供給Lua脚本用
+ - **luaclib_src**：存放C模块的源代码（.c、.h）
+ - **lualib**：存放Lua模块，提供給service業務代碼使用
+ - **proto**：存放通信协议文件（.proto）
+ - **tools**：存放工具文件
  - **CMakelist.txt**：CMake指导文件
 
 ### 编译：

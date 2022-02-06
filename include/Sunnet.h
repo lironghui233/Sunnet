@@ -5,8 +5,12 @@
 #include "Worker.h"
 #include "Service.h"
 #include "Conn.h"
+#include "Timer.h"
+#include "Monitor.h"
 
 class Worker;
+class Timer;
+class Monitor;
 
 class Sunnet {
 public:
@@ -52,19 +56,49 @@ public:
 	//唤醒工作线程
 	void CheckAndWeekUp();
 	//让工作线程等待（仅工作线程调用）
-	void WorkerWait();			
+	void WorkerWait();		
+	//工作中的worker綫程數量
+	int GetWorkingThreadNum();	
+
+
+//管理定时器线程
+private:	
+	Timer* timer;
+	std::thread* timerThread;
+private:
+	//开启定时器线程
+	void StartTimer();
+public:
+	int AddTimer(uint32_t serviceId, uint32_t expire, char* cb);
+	bool DelTimer(int id);	
+	void ExpireTimer();
+	uint32_t GetNearestTimer();
+
+
+//管理監視器綫程
+private:
+	Monitor* monitor;
+	std::thread* monitorThread;
+private:
+	void StartMonitor();
+public:	
+	void NewWorkerMonitor(uint32_t worker_id);	
+	void DeleteWorkerMonitor(uint32_t worker_id);
+	void MonitorTrigger(uint32_t worker_id, int service_id);
+	void MonitorCheck();		
 
 
 //管理service	
 public:
 	//服务列表
 	std::unordered_map<uint32_t, std::shared_ptr<Service>> services; //unordered_map底层是哈希表，经常用于对象管理。选用哈希表是因为它的查找时间复杂度O(1)
-	uint32_t maxId = 0;	//最大ID
+	uint32_t maxId = 1;	//最大ID
 	pthread_rwlock_t servicesLock;	//读写锁。在Sunnet系统中，会经常查找服务对象（读操作）并给它发消息，新增、删除服务的频率较低（写操作），因此使用读写锁能充分利用CPU。
 public:
 	//增删服务
 	uint32_t NewService(std::shared_ptr<std::string> type);	//新建服务
 	void KillService(uint32_t id);	//删除服务，仅限服务自己调用
+	void OnServiceErr(uint32_t id);
 private:
 	//获取服务
 	std::shared_ptr<Service> GetService(uint32_t id);
@@ -104,8 +138,9 @@ public:
 	void Send(uint32_t toId, std::shared_ptr<BaseMsg> msg);
 
 public:
-	//仅测试用！！！
-	//创建消息
+	//创建服务间消息
+	std::shared_ptr<BaseMsg> MakeBaseMsg(int type);
 	std::shared_ptr<BaseMsg> MakeMsg(uint32_t source, char* buff, int len);
+	std::shared_ptr<BaseMsg> MakeCallbackMsg(uint32_t source, char* buff, int len);
 		
 };

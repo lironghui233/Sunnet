@@ -45,7 +45,7 @@ std::shared_ptr<BaseMsg> Service::PopMsg() {
 
 //创建服务后触发
 void Service::OnInit() {
-	std::cout << "[" << id << "] OnInit" << std::endl;
+	// std::cout << "Service [" << *type << " id:" << id << "] OnInit" << std::endl;
 	//新建Lua虚拟机
 	luaState = luaL_newstate();
 	//开启全部标准库
@@ -53,8 +53,14 @@ void Service::OnInit() {
 	//注册Sunnet系统API
 	LuaAPI::Register(luaState);
 	//执行Lua文件
+	std::string loader = "../lualib/loader.lua";
+	int isok = luaL_dofile(luaState, loader.data());
+	if(isok == 1) { //若成功则返回值未0，若失败则返回值为1
+		std::cout << "run loader fail:" << lua_tostring(luaState, -1) << std::endl;
+	}
+	//执行Lua文件
 	std::string filename = "../service/" + *type + "/init.lua";
-	int isok = luaL_dofile(luaState, filename.data());
+	isok = luaL_dofile(luaState, filename.data());
 	if(isok == 1) { //若成功则返回值未0，若失败则返回值为1
 		std::cout << "run lua fail:" << lua_tostring(luaState, -1) << std::endl;
 	}
@@ -69,19 +75,35 @@ void Service::OnInit() {
 
 //收到消息时触发
 void Service::OnMsg(std::shared_ptr<BaseMsg> msg) {
-	//std::cout << "[" << id << "] OnMsg" << std::endl;
-
-	if (msg->type == BaseMsg::TYPE::SERVICE) {
-		auto m = std::dynamic_pointer_cast<ServiceMsg>(msg);
-		OnServiceMsg(m);
-	} 
-	else if (msg->type == BaseMsg::TYPE::SOCKET_ACCEPT) {
-		auto m = std::dynamic_pointer_cast<SocketAcceptMsg>(msg);
-		OnAcceptMsg(m);
-	}
-	else if (msg->type == BaseMsg::TYPE::SOCKET_RW) {
-		auto m = std::dynamic_pointer_cast<SocketRWMsg>(msg);
-		OnRWMsg(m);
+	// std::cout << "[" << id << "] OnMsg" << std::endl;
+	switch(msg->type)
+	{
+		case (BaseMsg::TYPE::SERVICE):
+		{
+			auto m = std::dynamic_pointer_cast<ServiceMsg>(msg);
+			OnServiceMsg(m);
+			break;
+		} 
+		case (BaseMsg::TYPE::SERVICE_CALLBACK):
+		{
+			auto m = std::dynamic_pointer_cast<ServiceMsg>(msg);
+			OnServiceCallbackMsg(m);
+			break;
+		} 
+		case (BaseMsg::TYPE::SOCKET_ACCEPT):
+		{
+			auto m = std::dynamic_pointer_cast<SocketAcceptMsg>(msg);
+			OnAcceptMsg(m);
+			break;
+		} 
+		case (BaseMsg::TYPE::SOCKET_RW):
+		{
+			auto m = std::dynamic_pointer_cast<SocketRWMsg>(msg);
+			OnRWMsg(m);
+			break;
+		} 
+		default:
+			break;
 	}
 }
 
@@ -140,7 +162,24 @@ void Service::OnServiceMsg(std::shared_ptr<ServiceMsg> msg) {
 	if(isok != 0) { //若返回值为0则代表成功，否者代表失败
 		std::cout << "call lua OnServiceMsg fail" << lua_tostring(luaState, -1) << std::endl;
 	}	
+}
+
+void Service::OnServiceCallbackMsg(std::shared_ptr<ServiceMsg> msg) {
+	std::cout << " OnServiceCallbackMsg " << std::endl;
+	//调用Lua函数
+	lua_getglobal(luaState, msg->buff.get());
+	int isok = lua_pcall(luaState, 0, 0, 0);
+	if(isok != 0) { //若返回值为0则代表成功，否者代表失败
+		std::cout << "call lua OnServiceCallbackMsg fail" << lua_tostring(luaState, -1) << std::endl;
+	}
 }	
+
+void Service::OnServiceErr(){
+	std::cout << "[error] OnServiceErr " << std::endl;
+	//调用Lua函数
+	//通知Lua函數錯誤
+	luaL_error(luaState, "script timeout.");   
+}
 
 void Service::OnAcceptMsg(std::shared_ptr<SocketAcceptMsg> msg) {
 	std::cout << " OnAcceptMsg " << msg->clientFd << std::endl;

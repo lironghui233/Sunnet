@@ -23,3 +23,7 @@ function OnSocketClose(fd)
 	print("[lua] chat OnSocketClose: " .. fd)
 	conns[fd] = nil
 end
+
+function OnServiceMsg(source, buff)
+	print("[lua] chat OnServiceMsg: " .. source .. " " .. buff)
+end

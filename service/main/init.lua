@@ -16,7 +16,8 @@ function OnInit(id)
 	-- sunnet.Send(ping2, pong, "Start")
 
 
-	sunnet.NewService("chat")
+	-- sunnet.NewService("chat")
+	sunnet.NewService("test")
 end
 
 function OnExit()

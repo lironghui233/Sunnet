@@ -8,6 +8,7 @@ public:
 		SERVICE = 1,	//Service服务间消息
 		SOCKET_ACCEPT = 2,	//有新的客户端连接
 		SOCKET_RW = 3,	//客户端可读可写
+		SERVICE_CALLBACK = 4, //Service服务回调消息
 	};	
 	uint8_t type;	//消息类型
 	char load[999999]{};	//用于检测内存泄漏，仅用于调试
